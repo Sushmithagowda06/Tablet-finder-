@@ -1,21 +1,60 @@
 # Smart Pharmacy Box Locator
 
-A web-based medicine inventory and box-location locator for **Mahalakshmi Medicals and Surgicals**.
+A simple medicine inventory application for finding tablets and their box locations.
 
 ## Features
 
-- Search medicines by brand name
-- Search by composition / salt
-- Display box location
-- Manual medicine entry
-- Duplicate medicine detection
-- Box-location validation (`A1`, `B12`, etc.)
-- Excel inventory import
-- Flexible Excel column recognition
-- Turso / LibSQL database
-- Local Express development server
-- Vercel-compatible API routes
-- Optional Gemini AI composition lookup
+- Search medicine by brand name
+- Search medicine by composition / salt
+- Add medicine manually
+- Detect duplicate medicines
+- Validate box locations such as `A1` and `B12`
+- Import medicine data from Excel
+- Store production data in Turso
+- Local development with Node.js and Express
+- Vercel API support
+
+## Required Software
+
+Install these before running the project:
+
+- Node.js
+- npm
+- Git (for GitHub/version control)
+
+Check installation:
+
+```bash
+node --version
+npm --version
+git --version
+```
+
+## Required Node.js Packages
+
+Install all project packages with:
+
+```bash
+npm install
+```
+
+The project requires:
+
+```text
+@libsql/client
+better-sqlite3
+cors
+dotenv
+express
+multer
+xlsx
+```
+
+If installing them manually:
+
+```bash
+npm install @libsql/client better-sqlite3 cors dotenv express multer xlsx
+```
 
 ## Project Structure
 
@@ -29,62 +68,30 @@ Tablet-finder-
 ├── package.json
 ├── package-lock.json
 ├── server.js
-├── medicines.db
-├── .env
-└── .gitignore
-```
-
-## Technologies
-
-- HTML5
-- JavaScript
-- Tailwind CSS
-- Node.js
-- Express.js
-- Turso / LibSQL
-- Multer
-- SheetJS (`xlsx`)
-- Gemini API (optional)
-
-## Database
-
-Production data is stored in Turso.
-
-```sql
-CREATE TABLE IF NOT EXISTS medicines (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    brand_name TEXT NOT NULL UNIQUE,
-    composition TEXT,
-    box_location TEXT NOT NULL
-);
+├── .gitignore
+└── .env
 ```
 
 ## Environment Variables
 
-For local development, create `.env`:
+Create a `.env` file in the project root:
 
 ```env
-TURSO_DATABASE_URL=libsql://your-database-url.turso.io
+TURSO_DATABASE_URL=your-turso-database-url
 TURSO_AUTH_TOKEN=your-turso-auth-token
 ```
 
-Never commit `.env` or expose the Turso authentication token.
+Do not upload `.env` to GitHub.
 
-For Vercel, add these variables under:
+## Run Locally
 
-**Vercel → Project → Settings → Environment Variables**
-
-## Installation
+Install packages:
 
 ```bash
-git clone <repository-url>
-cd Tablet-finder-
 npm install
 ```
 
-## Local Development
-
-Start the local server:
+Start the server:
 
 ```bash
 node server.js
@@ -96,7 +103,9 @@ Open:
 http://localhost:3000
 ```
 
-Local API routes:
+## Main API Routes
+
+### Local
 
 ```text
 GET  /medicines
@@ -104,9 +113,7 @@ POST /medicines
 POST /medicines/upload
 ```
 
-## Vercel API
-
-Vercel uses:
+### Vercel
 
 ```text
 GET  /api/medicines
@@ -114,138 +121,47 @@ POST /api/medicines
 POST /api/upload
 ```
 
-The frontend automatically selects the local or Vercel API endpoints.
-
 ## Excel Import
 
-The importer supports common medicine, composition, and location column names.
+The application accepts Excel files containing medicine/brand, composition, and box/rack/location information.
 
-Examples:
+Example columns:
 
 ```text
 brand_name
-brand
-medicine_name
-medicine
-tablet_name
-tablet
 composition
-salt
-active_ingredient
 box_location
-box
-rack
-location
-location_code
-shelf
-bin
 ```
 
-The importer reports:
+## Git
 
-- Added records
-- Duplicate records
-- Skipped incomplete rows
+Check changes:
 
-## Box Location Validation
-
-Valid examples:
-
-```text
-A1
-B12
-C5
-D100
+```bash
+git status
 ```
 
-Invalid examples:
+Stage changes:
 
-```text
-12A
-ABC
-A-
-1A
+```bash
+git add .
 ```
 
-## API Examples
+Commit:
 
-### Get medicines
-
-```http
-GET /api/medicines
+```bash
+git commit -m "Update project"
 ```
 
-### Add medicine
+Push:
 
-```http
-POST /api/medicines
-Content-Type: application/json
+```bash
+git push
 ```
 
-Example body:
+## Important
 
-```json
-{
-  "brand_name": "Dolo 650",
-  "composition": "Paracetamol 650mg",
-  "box_location": "A1"
-}
-```
-
-### Upload Excel
-
-```http
-POST /api/upload
-Content-Type: multipart/form-data
-```
-
-The uploaded file field is:
-
-```text
-file
-```
-
-## Duplicate Handling
-
-Medicine brand names are checked case-insensitively.
-
-For example:
-
-```text
-Dolo 650
-dolo 650
-DOLO 650
-```
-
-are treated as the same medicine.
-
-## Security
-
-Recommended `.gitignore` entries:
-
-```gitignore
-.env
-.env.*
-!.env.example
-node_modules/
-medicines.db
-```
-
-Never commit database credentials or API tokens.
-
-If Gemini is used in production, its API key should be stored server-side rather than exposed in frontend JavaScript.
-
-## Deployment
-
-1. Push the project to GitHub.
-2. Import the repository into Vercel.
-3. Add `TURSO_DATABASE_URL`.
-4. Add `TURSO_AUTH_TOKEN`.
-5. Deploy.
-6. Test medicine search, manual entry, and Excel upload.
-
-`server.js` is retained for local development. The `api/` directory contains the Vercel serverless API functions.
-
-## Maintainer
-
-Smart Pharmacy Box Locator project for Mahalakshmi Medicals and Surgicals.
+- Keep the Turso authentication token private.
+- Do not commit `.env`.
+- `server.js` is used for local development.
+- The `api` folder contains the Vercel API functions.
