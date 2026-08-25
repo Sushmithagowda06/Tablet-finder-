@@ -17,79 +17,175 @@ async function initDatabase() {
 }
 
 module.exports = async (req, res) => {
+
     try {
+
         await initDatabase();
 
+        // ==========================================================
         // GET ALL MEDICINES
+        // ==========================================================
+
         if (req.method === 'GET') {
+
             const result = await db.execute(`
-                SELECT *
+                SELECT
+                    id,
+                    brand_name,
+                    composition,
+                    box_location
                 FROM medicines
                 ORDER BY brand_name ASC
             `);
 
-            return res.status(200).json(result.rows);
+            // Convert BigInt values if returned by Turso
+            const medicines = result.rows.map(row => ({
+                id: Number(row.id),
+                brand_name: row.brand_name,
+                composition: row.composition || '',
+                box_location: row.box_location
+            }));
+
+            return res.status(200).json(medicines);
         }
 
+
+        // ==========================================================
         // ADD MEDICINE
+        // ==========================================================
+
         if (req.method === 'POST') {
+
             const {
                 brand_name,
                 composition,
                 box_location
-            } = req.body;
+            } = req.body || {};
+
+
+            // ------------------------------------------------------
+            // VALIDATION
+            // ------------------------------------------------------
 
             if (!brand_name || !box_location) {
+
                 return res.status(400).json({
-                    message: 'Brand name and box location are required'
+                    message:
+                        'Brand name and box location are required'
                 });
+
             }
 
-            const existing = await db.execute({
-                sql: `
-                    SELECT id
-                    FROM medicines
-                    WHERE LOWER(TRIM(brand_name))
-                    = LOWER(TRIM(?))
-                `,
-                args: [brand_name]
-            });
+
+            // ------------------------------------------------------
+            // CLEAN DATA
+            // ------------------------------------------------------
+
+            const cleanBrandName =
+                String(brand_name).trim();
+
+            const cleanComposition =
+                composition
+                    ? String(composition).trim()
+                    : '';
+
+            const cleanBoxLocation =
+                String(box_location)
+                    .trim()
+                    .toUpperCase();
+
+
+            // ------------------------------------------------------
+            // CHECK DUPLICATE
+            // ------------------------------------------------------
+
+            const existing =
+                await db.execute({
+                    sql: `
+                        SELECT id
+                        FROM medicines
+                        WHERE LOWER(TRIM(brand_name))
+                            = LOWER(TRIM(?))
+                        LIMIT 1
+                    `,
+                    args: [
+                        cleanBrandName
+                    ]
+                });
+
 
             if (existing.rows.length > 0) {
+
                 return res.status(409).json({
-                    message: 'Medicine already exists'
+                    message:
+                        'Medicine already exists'
                 });
+
             }
 
-            const result = await db.execute({
-                sql: `
-                    INSERT INTO medicines
-                    (brand_name, composition, box_location)
-                    VALUES (?, ?, ?)
-                `,
-                args: [
-                    brand_name.trim(),
-                    composition ? composition.trim() : '',
-                    box_location.trim().toUpperCase()
-                ]
-            });
+
+            // ------------------------------------------------------
+            // INSERT INTO TURSO
+            // ------------------------------------------------------
+
+            const result =
+                await db.execute({
+                    sql: `
+                        INSERT INTO medicines
+                        (
+                            brand_name,
+                            composition,
+                            box_location
+                        )
+                        VALUES (?, ?, ?)
+                    `,
+                    args: [
+                        cleanBrandName,
+                        cleanComposition,
+                        cleanBoxLocation
+                    ]
+                });
+
+
+            // ------------------------------------------------------
+            // RESPONSE
+            // IMPORTANT:
+            // Turso can return lastInsertRowid as BigInt.
+            // Convert it to Number before JSON response.
+            // ------------------------------------------------------
 
             return res.status(200).json({
                 id: Number(result.lastInsertRowid),
-                message: 'Medicine added successfully'
+                message:
+                    'Medicine added successfully'
             });
+
         }
+
+
+        // ==========================================================
+        // OTHER METHODS
+        // ==========================================================
 
         return res.status(405).json({
             message: 'Method not allowed'
         });
 
+
     } catch (error) {
-        console.error('Turso database error:', error);
+
+        console.error(
+            'Turso database error:',
+            error
+        );
 
         return res.status(500).json({
-            message: 'Database error',
-            error: error.message
+            message:
+                'Database error',
+            error:
+                error.message
         });
+
     }
+
 };

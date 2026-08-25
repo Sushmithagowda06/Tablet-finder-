@@ -192,9 +192,9 @@ app.post('/medicines', async (req, res) => {
 
 
         res.json({
-            id: result.lastInsertRowid,
-            message: 'Medicine added successfully'
-        });
+    id: Number(result.lastInsertRowid),
+    message: 'Medicine added successfully'
+});
 
 
     } catch (error) {
