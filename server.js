@@ -54,6 +54,19 @@ async function initializeDatabase() {
             box_location TEXT NOT NULL
         )
     `);
+    // ======================================================
+// DATABASE INDEXES
+// ======================================================
+
+await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_composition
+    ON medicines(composition)
+`);
+
+await db.execute(`
+    CREATE INDEX IF NOT EXISTS idx_box_location
+    ON medicines(box_location)
+`);
 
     console.log('Turso database connected.');
     console.log('Medicines table ready.');
