@@ -61,6 +61,7 @@ async function initializeDatabase() {
 await db.execute(`
     CREATE INDEX IF NOT EXISTS idx_composition
     ON medicines(composition)
+    
 `);
 
 await db.execute(`
