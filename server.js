@@ -74,12 +74,10 @@ async function initializeDatabase() {
         ON medicines(composition)
     `);
 
-
     await db.execute(`
         CREATE INDEX IF NOT EXISTS idx_medicines_box_location
         ON medicines(box_location)
     `);
-
 
     databaseInitialized = true;
 
@@ -126,12 +124,10 @@ function findColumn(row, aliases) {
             aliases.map(normalizeHeader)
         );
 
-
     for (const key of keys) {
 
         const normalizedKey =
             normalizeHeader(key);
-
 
         if (
             normalizedAliases.has(
@@ -144,7 +140,6 @@ function findColumn(row, aliases) {
         }
 
     }
-
 
     return null;
 
@@ -163,11 +158,9 @@ function getValue(row, aliases) {
             aliases
         );
 
-
     if (!column) {
         return '';
     }
-
 
     return String(
         row[column] ?? ''
@@ -381,6 +374,23 @@ const locationAliases = [
 
 
 // ======================================================
+// GET NEXT MEDICINE ID
+// ======================================================
+
+async function getNextMedicineId() {
+
+    const result = await db.execute(`
+        SELECT COALESCE(MAX(id), 0) + 1 AS next_id
+        FROM medicines
+    `);
+
+    return Number(
+        result.rows[0].next_id
+    );
+}
+
+
+// ======================================================
 // GET MEDICINES
 // ======================================================
 
@@ -389,7 +399,6 @@ app.get('/medicines', async (req, res) => {
     try {
 
         await initializeDatabase();
-
 
         const search =
             String(
@@ -407,7 +416,6 @@ app.get('/medicines', async (req, res) => {
 
             const searchPattern =
                 `%${search}%`;
-
 
             const result =
                 await db.execute({
@@ -586,6 +594,22 @@ app.post('/medicines', async (req, res) => {
 
 
         // --------------------------------------------------
+        // BRAND NAME VALIDATION
+        // --------------------------------------------------
+
+        if (!cleanBrandName) {
+
+            return res.status(400).json({
+
+                message:
+                    'Brand name cannot be empty'
+
+            });
+
+        }
+
+
+        // --------------------------------------------------
         // BOX VALIDATION
         // --------------------------------------------------
 
@@ -646,33 +670,51 @@ app.post('/medicines', async (req, res) => {
 
 
         // --------------------------------------------------
-        // INSERT
+        // GET NEXT ID
+        //
+        // If table is empty:
+        // MAX(id) = 0
+        // next ID = 1
+        //
+        // If current IDs are:
+        // 263, 264, 265
+        // next ID = 266
         // --------------------------------------------------
 
-        const result =
-            await db.execute({
+        const nextId =
+            await getNextMedicineId();
 
-                sql: `
-                    INSERT INTO medicines
-                    (
-                        brand_name,
-                        composition,
-                        box_location
-                    )
-                    VALUES (?, ?, ?)
-                `,
 
-                args: [
+        // --------------------------------------------------
+        // INSERT WITH EXPLICIT ID
+        // --------------------------------------------------
 
-                    cleanBrandName,
+        await db.execute({
 
-                    cleanComposition,
+            sql: `
+                INSERT INTO medicines
+                (
+                    id,
+                    brand_name,
+                    composition,
+                    box_location
+                )
+                VALUES (?, ?, ?, ?)
+            `,
 
-                    cleanBoxLocation
+            args: [
 
-                ]
+                nextId,
 
-            });
+                cleanBrandName,
+
+                cleanComposition,
+
+                cleanBoxLocation
+
+            ]
+
+        });
 
 
         // --------------------------------------------------
@@ -682,9 +724,7 @@ app.post('/medicines', async (req, res) => {
         return res.json({
 
             id:
-                Number(
-                    result.lastInsertRowid
-                ),
+                nextId,
 
             message:
                 'Medicine added successfully'
@@ -725,6 +765,9 @@ app.post(
     async (req, res) => {
 
         try {
+
+            await initializeDatabase();
+
 
             // --------------------------------------------------
             // CHECK FILE
@@ -1053,7 +1096,15 @@ app.post(
 
 
             // ==================================================
-            // BATCH INSERT
+            // GET STARTING ID
+            // ==================================================
+
+            let nextId =
+                await getNextMedicineId();
+
+
+            // ==================================================
+            // CREATE BATCH INSERT STATEMENTS
             // ==================================================
 
             if (
@@ -1062,31 +1113,48 @@ app.post(
 
                 const statements =
                     recordsToInsert.map(
-                        record => ({
+                        record => {
 
-                            sql: `
-                                INSERT INTO medicines
-                                (
-                                    brand_name,
-                                    composition,
-                                    box_location
-                                )
-                                VALUES (?, ?, ?)
-                            `,
+                            const assignedId =
+                                nextId;
 
-                            args: [
+                            nextId++;
 
-                                record.brand_name,
 
-                                record.composition,
+                            return {
 
-                                record.box_location
+                                sql: `
+                                    INSERT INTO medicines
+                                    (
+                                        id,
+                                        brand_name,
+                                        composition,
+                                        box_location
+                                    )
+                                    VALUES (?, ?, ?, ?)
+                                `,
 
-                            ]
+                                args: [
 
-                        })
+                                    assignedId,
+
+                                    record.brand_name,
+
+                                    record.composition,
+
+                                    record.box_location
+
+                                ]
+
+                            };
+
+                        }
                     );
 
+
+                // --------------------------------------------------
+                // INSERT ALL EXCEL RECORDS
+                // --------------------------------------------------
 
                 await db.batch(
                     statements,
